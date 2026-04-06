@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>my image site</title>
+<style>
+body { font-family: Arial; margin: 0; background: #121212; color: #eee; }
+
+.top {
+  padding: 10px;
+  background: #1e1e1e;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+}
+
+.upload { display: flex; gap: 10px; }
+
+.preview img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border: 1px solid #333;
+}
+
+.preview input {
+  margin-left: 10px;
+  margin-bottom: 4px;
+  background: #222;
+  border: 1px solid #333;
+  color: #eee;
+}
+
+button {
+  background: #333;
+  color: #eee;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+button:hover { background: #444; }
+
+.container { display: flex; }
+
+.left {
+  width: 150px;
+  padding: 10px;
+  background: #181818;
+}
+
+.right {
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.box {
+  background: #1e1e1e;
+  padding: 5px;
+  border: 1px solid #333;
+}
+
+.box img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.tag {
+  cursor: pointer;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #aaa;
+}
+
+.tag:hover { color: white; }
+
+.search {
+  display: flex;
+  gap: 5px;
+}
+
+.search input {
+  background: #222;
+  border: 1px solid #333;
+  color: #eee;
+}
+
+</style>
+</head>
+<body>
+
+<div class="top">
+
+<div class="upload">
+  <input type="file" id="fileInput" onchange="previewImage()">
+
+  <div class="preview" style="display:flex; align-items:flex-start; gap:10px;">
+    <img id="previewImg">
+    <div>
+      <input id="title" placeholder="title"><br>
+      <input id="author" placeholder="author"><br>
+      <input id="tags" placeholder="tags"><br>
+      <button onclick="upload()">upload</button>
+    </div>
+  </div>
+</div>
+
+<div class="search">
+  <input id="search" placeholder="search">
+  <button onclick="searchImages()">search</button>
+  <button onclick="loadGallery()">reset</button>
+</div>
+
+</div>
+
+<div class="container">
+
+<div class="left">
+<b>tags</b>
+<div id="tagList"></div>
+</div>
+
+<div class="right" id="gallery"></div>
+
+</div>
+
+<script>
+var images = JSON.parse(localStorage.getItem('images') || '[]');
+
+function previewImage() {
+  var file = fileInput.files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    previewImg.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function upload() {
+  var file = fileInput.files[0];
+  if (!file) { alert('no file'); return; }
+
+  var title = document.getElementById('title').value;
+  var author = document.getElementById('author').value;
+
+  var raw = document.getElementById('tags').value.split(',');
+  var tags = [];
+  for (var i = 0; i < raw.length; i++) {
+    var t = raw[i].trim().toLowerCase();
+    if (t) tags.push(t);
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    images.push({ src: e.target.result, title: title, author: author, tags: tags });
+    localStorage.setItem('images', JSON.stringify(images));
+
+    fileInput.value = '';
+    previewImg.src = '';
+    document.getElementById('title').value = '';
+    document.getElementById('author').value = '';
+    document.getElementById('tags').value = '';
+
+    loadGallery();
+    updateTags();
+  };
+
+  reader.readAsDataURL(file);
+}
+
+function loadGallery(data) {
+  var gallery = document.getElementById('gallery');
+  gallery.innerHTML = '';
+
+  if (!data) data = images;
+
+  for (var i = 0; i < data.length; i++) {
+    var img = data[i];
+
+    var div = document.createElement('div');
+    div.className = 'box';
+
+    div.innerHTML =
+      "<img src='" + img.src + "'>" +
+      "<div>" + (img.title || '') + "</div>" +
+      "<div style='font-size:12px;color:#aaa'>" + img.author + "</div>";
+
+    gallery.appendChild(div);
+  }
+}
+
+function searchImages() {
+  var q = document.getElementById('search').value.toLowerCase();
+  var result = [];
+
+  for (var i = 0; i < images.length; i++) {
+    var img = images[i];
+
+    for (var j = 0; j < img.tags.length; j++) {
+      if (img.tags[j].includes(q)) {
+        result.push(img);
+        break;
+      }
+    }
+  }
+
+  loadGallery(result);
+}
+
+function updateTags() {
+  var tagList = document.getElementById('tagList');
+  tagList.innerHTML = '';
+
+  var allTags = [];
+
+  for (var i = 0; i < images.length; i++) {
+    for (var j = 0; j < images[i].tags.length; j++) {
+      var t = images[i].tags[j];
+      if (!allTags.includes(t)) {
+        allTags.push(t);
+      }
+    }
+  }
+
+  for (var i = 0; i < allTags.length; i++) {
+    var div = document.createElement('div');
+    div.className = 'tag';
+    div.innerText = allTags[i];
+
+    div.onclick = function() {
+      var tag = this.innerText;
+      var result = [];
+
+      for (var k = 0; k < images.length; k++) {
+        if (images[k].tags.includes(tag)) {
+          result.push(images[k]);
+        }
+      }
+
+      loadGallery(result);
+    };
+
+    tagList.appendChild(div);
+  }
+}
+
+loadGallery();
+updateTags();
+
+</script>
+
+</body>
+</html>
